@@ -14,7 +14,7 @@ try:
     if not os.path.exists(font_path):
         raise FileNotFoundError("No suitable font found.")
     large_font = ImageFont.truetype(font_path, 200)  # Color title, 225pt
-    medium_font = ImageFont.truetype(font_path, 105)  # Material/gauge and status, 115pt
+    medium_font = ImageFont.truetype(font_path, 100)  # Material/gauge and status, 115pt
     small_font = ImageFont.truetype(font_path, 60)   # Origin, 70pt
     st.success(f"Fonts loaded successfully from {font_path}: 225pt, 115pt, and 70pt.")
 except Exception as e:
@@ -76,7 +76,7 @@ if st.button("Generate Label"):
         for offset_y in [-2, -1, 0, 1, 2]:
             draw.text((x + offset_x, y + offset_y), material_text, font=medium_font, fill="black")
     # Status block (115pt), shifted right 15px for text
-    status_y = 415  # y=415-550 (unchanged position)
+    status_y = 395  # y=415-550 (unchanged position)
     draw.rectangle([0, status_y, 1650, status_y + 135], fill=(95, 178, 34) if status == "Open" else (0, 99, 150))  # Height 135px
     # Status text, shifted right 15px
     draw.text((15, status_y + 25), status_text, font=medium_font, fill="white")  # x=15, y=440 for visibility
