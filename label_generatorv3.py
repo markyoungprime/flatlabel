@@ -43,7 +43,7 @@ if status == "RESERVED":
 
 # Generate label function
 if st.button("Generate Label"):
-    width, height = 1650, 586  # Original size with 16px top margin
+    width, height = 1725, 586  # Width 5.75in (1725px), height 1.95in (586px)
     # Background and text color based on status
     bg_color = "black" if status == "RESERVED" else "white"
     text_color = "white" if status == "RESERVED" else "black"
@@ -58,17 +58,17 @@ if st.button("Generate Label"):
     origin_text = origin.upper()  # Convert to all CAPS
 
     # Upper portion: Color title (235pt, bold)
-    x, y = 40, 36  # x=40 (moved right 10px), y=36
+    x, y = 40, 36  # x=40, y=36
     for offset_x in [-2, -1, 0, 1, 2]:
         for offset_y in [-2, -1, 0, 1, 2]:
             draw.text((x + offset_x, y + offset_y), color_text, font=large_font, fill=text_color)
 
-    # Divider below color title, moved up 10px
-    draw.line([(0, 251), (1650, 251)], fill=text_color, width=5)  # y=261 - 10 = 251
+    # Divider below color title
+    draw.line([(0, 251), (1725, 251)], fill=text_color, width=5)  # y=251, width 1725
 
     # Lower portion: Gauge, Origin, Status (Reserved only)
-    # Gauge (108pt, bold), moved up 5px, right 10px
-    x, y = 60, 361  # x=50 + 10 = 60, y=366 - 5 = 361 (bottom at 469)
+    # Gauge (108pt, bold)
+    x, y = 60, 361  # x=60, y=361 (bottom at 469)
     gauge_width = draw.textlength(gauge, font=medium_font)
     gauge_height = 108  # Approximate height of 108pt font
     for offset_x in [-2, -1, 0, 1, 2]:
@@ -85,11 +85,18 @@ if st.button("Generate Label"):
         radius = max(gauge_width, gauge_height) / 2 + 20
         draw.ellipse([center_x - radius, center_y - radius, center_x + radius, center_y + radius], outline=text_color, width=5)
     else:  # Square for 22ga, 24ga, 26ga
+        side_length = max(gauge_width, gauge_height) + 40  # Equal width and height, 20px padding each side
+        center_x = x + gauge_width / 2
+        center_y = y + gauge_height / 2
+        shape_x0 = center_x - side_length / 2
+        shape_y0 = center_y - side_length / 2
+        shape_x1 = center_x + side_length / 2
+        shape_y1 = center_y + side_length / 2
         draw.rectangle([shape_x0, shape_y0, shape_x1, shape_y1], outline=text_color, width=5)
 
     # Origin (55pt), right-justified
     origin_width = draw.textlength(origin_text, font=small_font)
-    origin_x = 1650 - origin_width - 20  # x=1650 - text length - 20
+    origin_x = 1725 - origin_width - 20  # Right-align with 20px padding
     origin_y = 461  # Unchanged
     # Draw box around Origin (10px padding)
     box_x0 = origin_x - 10
@@ -99,10 +106,10 @@ if st.button("Generate Label"):
     draw.rectangle([box_x0, box_y0, box_x1, box_y1], fill=box_color)
     draw.text((origin_x, origin_y), origin_text, font=small_font, fill=origin_text_color)
 
-    # Status (140pt), centered, bottom-aligned (Reserved only)
+    # Status (140pt), centered, moved up 10px (Reserved only)
     if status == "RESERVED":
         status_width = draw.textlength(status_text, font=status_font)
-        status_x = (1650 - status_width) / 2  # Center horizontally
+        status_x = (1725 - status_width) / 2  # Center horizontally
         status_y = 421  # y=421 (bottom at 561)
         draw.text((status_x, status_y), status_text, font=status_font, fill=text_color)
 
