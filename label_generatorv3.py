@@ -1,131 +1,144 @@
 import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 import os
+from io import BytesIO
 
-# Set page title
-st.title("Sheet Metal Label Generator (No Swatch)")
+st.set_page_config(page_title="Prime Roofing - Sheet Metal Label Generator", layout="centered")
 
-# Font handling
-try:
-    font_path = "/System/Library/Fonts/Helvetica.ttc"
-    if not os.path.exists(font_path):
-        st.warning("Helvetica not found at /System/Library/Fonts/Helvetica.ttc, falling back to DejaVu Sans.")
-        font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-    if not os.path.exists(font_path):
-        raise FileNotFoundError("No suitable font found.")
-    large_font = ImageFont.truetype(font_path, 220)  # Color title, 235pt, bold
-    medium_font = ImageFont.truetype(font_path, 108)  # Gauge, 108pt, bold
-    small_font = ImageFont.truetype(font_path, 55)   # Origin, 55pt
-    status_font = ImageFont.truetype(font_path, 140)  # Status (Reserved), 140pt
-    st.success(f"Fonts loaded successfully from {font_path}: 235pt, 108pt, 55pt, and 140pt.")
-except Exception as e:
-    st.error(f"Font loading error: {e}")
-    large_font = ImageFont.load_default()
-    medium_font = ImageFont.load_default()
-    small_font = ImageFont.load_default()
-    status_font = ImageFont.load_default()
-    st.warning("Using default font; sizes may be smaller than expected.")
+st.title("🛠️ Prime Roofing Sheet Metal Label Generator")
+st.markdown("**No Swatch Version** — Perfect for quick labels on coils, panels, or fab pieces.")
 
-# Input widgets
-origin = st.text_input("Origin:", "Sabre")  # First field
-color = st.text_input("Color:", "")  # Custom entry only
+# ====================== FONT HANDLING (Cross-platform) ======================
+def get_font(size):
+    # Try common system fonts first
+    font_candidates = [
+        "/System/Library/Fonts/Helvetica.ttc",           # macOS
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",  # Linux
+        "C:\\Windows\\Fonts\\Arial.ttf",                 # Windows
+        "C:\\Windows\\Fonts\\Helvetica.ttf",
+    ]
+    
+    for path in font_candidates:
+        if os.path.exists(path):
+            try:
+                return ImageFont.truetype(path, size)
+            except:
+                pass
+    
+    st.warning("Custom font not found. Using default font (labels will look slightly different).")
+    return ImageFont.load_default()
+
+large_font = get_font(235)
+medium_font = get_font(108)
+small_font = get_font(55)
+status_font = get_font(140)
+
+# ====================== INPUTS ======================
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    origin = st.text_input("Origin:", "Sabre", help="Usually 'Sabre' or your shop name")
+    color = st.text_input("Color:", "", placeholder="e.g. Matte Black, Natural Zinc")
 
 gauge_options = ["26ga", "24ga", "22ga", ".032", ".040", "Other"]
-gauge = st.selectbox("Gauge:", gauge_options, index=1)  # Default "24ga"
+gauge = st.selectbox("Gauge:", gauge_options, index=1)
 
 if gauge == "Other":
     gauge = st.text_input("Enter custom gauge:", "")
 
 status = st.selectbox("Status:", ["OPEN", "RESERVED"])
+
 project = ""
 if status == "RESERVED":
     project = st.text_input("Project Name:", "")
 
-# Generate label function
-if st.button("Generate Label"):
-    width, height = 1725, 586  # Width 5.75in (1725px), height 1.95in (586px)
-    # Background and text color based on status
+# ====================== GENERATE LABEL ======================
+if st.button("🚀 Generate Label", type="primary", use_container_width=True):
+    width, height = 1725, 586  # 5.75" x 1.95" at 300 DPI
+
     bg_color = "black" if status == "RESERVED" else "white"
     text_color = "white" if status == "RESERVED" else "black"
-    box_color = "black" if bg_color == "white" else "white"  # Inverted for Origin box
-    origin_text_color = "white" if box_color == "black" else "black"  # Opposite of box color
-    image = Image.new("RGB", (width, height), bg_color)
+    box_color = "black" if bg_color == "white" else "white"
+    origin_text_color = "white" if box_color == "black" else "black"
+
+    image = Image.new("RGB", (width, height), color=bg_color)
     draw = ImageDraw.Draw(image)
 
-    # Text area with simulated bold
-    color_text = color
-    status_text = project if status == "RESERVED" and project else "RESERVED" if status == "RESERVED" else ""
-    origin_text = origin.upper()  # Convert to all CAPS
+    color_text = color.strip().upper() if color.strip() else "NO COLOR"
+    status_text = project.strip().upper() if status == "RESERVED" and project.strip() else "RESERVED"
+    origin_text = origin.strip().upper()
 
-    # Upper portion: Color title (235pt, bold)
-    x, y = 40, 36  # x=40, y=36
-    for offset_x in [-2, -1, 0, 1, 2]:
-        for offset_y in [-2, -1, 0, 1, 2]:
-            draw.text((x + offset_x, y + offset_y), color_text, font=large_font, fill=text_color)
+    # === Color Title (large, simulated bold) ===
+    x, y = 40, 36
+    for dx in [-2, -1, 0, 1, 2]:
+        for dy in [-2, -1, 0, 1, 2]:
+            draw.text((x + dx, y + dy), color_text, font=large_font, fill=text_color)
 
-    # Divider below color title
-    draw.line([(0, 251), (1725, 251)], fill=text_color, width=5)  # y=251, width 1725
+    # Divider
+    draw.line([(0, 251), (1725, 251)], fill=text_color, width=5)
 
-    # Lower portion: Gauge, Origin, Status (Reserved only)
-    # Gauge (108pt, bold)
-    x, y = 60, 361  # x=60, y=361 (bottom at 469)
+    # === Gauge with shape ===
+    gauge_x, gauge_y = 60, 361
     gauge_width = draw.textlength(gauge, font=medium_font)
-    gauge_height = 108  # Approximate height of 108pt font
-    for offset_x in [-2, -1, 0, 1, 2]:
-        for offset_y in [-2, -1, 0, 1, 2]:
-            draw.text((x + offset_x, y + offset_y), gauge, font=medium_font, fill=text_color)
-    # Draw shape around Gauge (20px padding)
-    shape_x0 = x - 20
-    shape_y0 = y - 20
-    shape_x1 = x + gauge_width + 20
-    shape_y1 = y + gauge_height + 20
-    if gauge in [".032", ".040"] or gauge not in ["26ga", "24ga", "22ga"]:  # Circle for .032, .040, or custom
-        center_x = (shape_x0 + shape_x1) / 2
-        center_y = (shape_y0 + shape_y1) / 2
-        radius = max(gauge_width, gauge_height) / 2 + 20
-        draw.ellipse([center_x - radius, center_y - radius, center_x + radius, center_y + radius], outline=text_color, width=5)
-    else:  # Square for 22ga, 24ga, 26ga
-        side_length = max(gauge_width, gauge_height) + 40  # Equal width and height, 20px padding each side
-        center_x = x + gauge_width / 2
-        center_y = y + gauge_height / 2
-        shape_x0 = center_x - side_length / 2
-        shape_y0 = center_y - side_length / 2
-        shape_x1 = center_x + side_length / 2
-        shape_y1 = center_y + side_length / 2
-        draw.rectangle([shape_x0, shape_y0, shape_x1, shape_y1], outline=text_color, width=5)
+    
+    # Simulated bold for gauge
+    for dx in [-2, -1, 0, 1, 2]:
+        for dy in [-2, -1, 0, 1, 2]:
+            draw.text((gauge_x + dx, gauge_y + dy), gauge, font=medium_font, fill=text_color)
 
-    # Origin (55pt), right-justified
+    # Draw shape around gauge
+    padding = 20
+    if gauge in [".032", ".040"] or gauge not in ["26ga", "24ga", "22ga"]:
+        # Circle for decimals / custom
+        cx = gauge_x + gauge_width / 2
+        cy = gauge_y + 54
+        radius = max(gauge_width, 108) / 2 + padding + 10
+        draw.ellipse([cx - radius, cy - radius, cx + radius, cy + radius], 
+                     outline=text_color, width=5)
+    else:
+        # Square/rectangle for standard gauges
+        side = max(gauge_width, 108) + padding * 2
+        cx = gauge_x + gauge_width / 2
+        cy = gauge_y + 54
+        draw.rectangle([cx - side/2, cy - side/2, cx + side/2, cy + side/2], 
+                       outline=text_color, width=5)
+
+    # === Origin Box (right aligned) ===
     origin_width = draw.textlength(origin_text, font=small_font)
-    origin_x = 1725 - origin_width - 20  # Right-align with 20px padding
-    origin_y = 461  # Unchanged
-    # Draw box around Origin (10px padding)
-    box_x0 = origin_x - 10
-    box_y0 = origin_y - 10
-    box_x1 = origin_x + origin_width + 10
-    box_y1 = origin_y + 55 + 10  # 55pt height + padding
+    origin_x = 1725 - origin_width - 30
+    origin_y = 461
+
+    box_x0 = origin_x - 12
+    box_y0 = origin_y - 12
+    box_x1 = origin_x + origin_width + 12
+    box_y1 = origin_y + 67
+
     draw.rectangle([box_x0, box_y0, box_x1, box_y1], fill=box_color)
     draw.text((origin_x, origin_y), origin_text, font=small_font, fill=origin_text_color)
 
-    # Status (140pt), centered, moved up 10px (Reserved only)
+    # === RESERVED Status (centered, only if RESERVED) ===
     if status == "RESERVED":
         status_width = draw.textlength(status_text, font=status_font)
-        status_x = (1725 - status_width) / 2  # Center horizontally
-        status_y = 421  # y=421 (bottom at 561)
+        status_x = (1725 - status_width) / 2
+        status_y = 411
         draw.text((status_x, status_y), status_text, font=status_font, fill=text_color)
 
-    # Display the image with centered styling
-    with st.container():
-        st.image(image, caption="Generated Label (No Swatch)", use_container_width=True)
+    # Display in app
+    st.image(image, caption="✅ Generated Label — Ready for printing or laser engraving", 
+             use_container_width=True)
 
-    # Download button
-    img_buffer = image.save("label_no_swatch.png", "PNG", quality=100)
-    with open("label_no_swatch.png", "rb") as file:
-        st.download_button(
-            label="Download Label",
-            data=file,
-            file_name="label_no_swatch.png",
-            mime="image/png"
-        )
+    # ====================== DOWNLOAD ======================
+    buf = BytesIO()
+    image.save(buf, format="PNG", quality=100)
+    buf.seek(0)
 
-# Note about saving on Streamlit Cloud
-st.info("Note: The 'Download Label' button allows you to save the label locally. Streamlit Cloud doesn't persist saved files.")
+    st.download_button(
+        label="⬇️ Download Label as PNG",
+        data=buf,
+        file_name=f"PrimeRoofing_Label_{color_text.replace(' ', '_')}_{gauge}.png",
+        mime="image/png",
+        use_container_width=True
+    )
+
+st.caption("Prime Roofing • Jacksonville, FL • Custom Sheet Metal Fabrication Since 2010")
+st.info("💡 Tip: Print these on weatherproof vinyl or use your ShopSabre FibreLaser to etch directly onto metal tags.")
